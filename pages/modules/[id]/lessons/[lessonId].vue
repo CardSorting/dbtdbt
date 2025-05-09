@@ -1,5 +1,18 @@
 <template>
-  <div class="lesson-page" v-if="lesson && module">
+  <!-- Loading state -->
+  <div v-if="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading lesson...</p>
+  </div>
+  
+  <!-- Error state -->
+  <div v-else-if="error" class="lesson-not-found">
+    <h2>Error Loading Lesson</h2>
+    <p>{{ error }}</p>
+    <NuxtLink to="/modules" class="btn">Return to Modules</NuxtLink>
+  </div>
+  
+  <div class="lesson-page" v-else-if="lesson && module">
     <!-- Lesson navigation and progress -->
     <div class="lesson-nav" :style="{ borderColor: module.color }">
       <NuxtLink 
@@ -125,7 +138,7 @@
     </div>
 
     <!-- Lesson completion -->
-    <div class="lesson-completion card" v-if="!lesson.completed">
+    <div class="lesson-completion card" v-if="!isLessonCompleted">
       <div class="completion-message">
         <h2>Ready to complete this lesson?</h2>
         <p>Once you mark this lesson as complete, you'll earn {{ lesson.xpReward }} XP and unlock your progress.</p>
@@ -177,24 +190,26 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, reactive } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useModulesStore } from '@/store/modules';
-import { useUserStore } from '@/store/user';
-import ProgressBar from '@/components/shared/ProgressBar.vue';
+import { useModulesStore } from '~/store/modules';
+import { useUserStore } from '~/store/user';
+import ProgressBar from '~/components/shared/ProgressBar.vue';
 
 const route = useRoute();
 const router = useRouter();
 const modulesStore = useModulesStore();
 const userStore = useUserStore();
 
-const moduleId = route.params.id;
-const lessonId = route.params.lessonId;
+const moduleId = route.params.id as string;
+const lessonId = route.params.lessonId as string;
 
-const module = ref(null);
-const lesson = ref(null);
+const module = ref<any>(null);
+const lesson = ref<any>(null);
 const lessonIndex = ref(-1);
+const loading = ref(true);
+const error = ref<string | null>(null);
 
 // For breathing exercises
 const breathingActive = ref(false);
@@ -202,42 +217,83 @@ const breathingTimer = ref(0);
 const breathingState = ref('Breathe');
 
 // For reflection exercises
-const reflectionText = reactive({});
+const reflectionText = reactive<Record<string, string>>({});
 
 // For scenarios
-const scenarioSelections = reactive({});
-const showScenarioFeedback = reactive({});
+const scenarioSelections = reactive<Record<string, number>>({});
+const showScenarioFeedback = reactive<Record<string, boolean>>({});
 
-onMounted(() => {
-  // Find the module
-  const foundModule = modulesStore.modules.find(m => m.id === moduleId);
-  
-  if (foundModule) {
-    if (!foundModule.unlocked) {
-      // If module is locked, redirect to modules page
+// Watch for route changes to reload data
+watch(
+  () => route.params,
+  async (newParams) => {
+    if (newParams.id !== moduleId || newParams.lessonId !== lessonId) {
+      await loadData();
+    }
+  }
+);
+
+// Load module and lesson data
+const loadData = async () => {
+  try {
+    loading.value = true;
+    error.value = null;
+    
+    // First fetch the module
+    const fetchedModule = await modulesStore.fetchModule(moduleId);
+    
+    if (!fetchedModule) {
       router.push('/modules');
       return;
     }
     
-    module.value = foundModule;
+    if (!fetchedModule.unlocked) {
+      router.push('/modules');
+      return;
+    }
+    
+    module.value = fetchedModule;
     modulesStore.setCurrentModule(moduleId);
     
     // Find the lesson in this module
-    const foundLessonIndex = foundModule.lessons.findIndex(l => l.id === lessonId);
+    const foundLessonIndex = fetchedModule.lessons.findIndex((l: any) => l.id === lessonId);
     
     if (foundLessonIndex >= 0) {
-      lesson.value = foundModule.lessons[foundLessonIndex];
+      lesson.value = fetchedModule.lessons[foundLessonIndex];
       lessonIndex.value = foundLessonIndex;
       modulesStore.setCurrentLesson(lessonId);
     } else {
-      // Lesson not found, redirect to module page
-      router.push(`/modules/${moduleId}`);
+      // If we can't find the lesson in the module, try to fetch it directly
+      try {
+        const api = useApi();
+        const lessonData = await api.fetchLesson(lessonId);
+        
+        if (lessonData) {
+          lesson.value = lessonData;
+          
+          // Try to find the index again
+          const lessons = fetchedModule.lessons || [];
+          lessonIndex.value = lessons.findIndex((l: any) => l.id === lessonId);
+          
+          modulesStore.setCurrentLesson(lessonId);
+        } else {
+          router.push(`/modules/${moduleId}`);
+        }
+      } catch (err: any) {
+        console.error('Error fetching lesson:', err);
+        error.value = err.message || 'Failed to load lesson';
+        router.push(`/modules/${moduleId}`);
+      }
     }
-  } else {
-    // Module not found, redirect to modules page
-    router.push('/modules');
+  } catch (err: any) {
+    console.error('Error loading data:', err);
+    error.value = err.message || 'Failed to load module and lesson';
+  } finally {
+    loading.value = false;
   }
-});
+};
+
+onMounted(loadData);
 
 // Computed properties for lesson navigation
 const nextLessonId = computed(() => {
@@ -268,8 +324,12 @@ const lessonProgressPercentage = computed(() => {
   return Math.round(((lessonIndex.value + 1) / module.value.lessons.length) * 100);
 });
 
+const isLessonCompleted = computed(() => {
+  return userStore.isLessonCompleted(lessonId);
+});
+
 // Helper functions for formatting
-const formatLessonType = (type) => {
+const formatLessonType = (type: string) => {
   switch(type) {
     case 'theory': return 'Theory';
     case 'exercise': return 'Exercise';
@@ -279,7 +339,7 @@ const formatLessonType = (type) => {
   }
 };
 
-const formatExerciseType = (type) => {
+const formatExerciseType = (type: string) => {
   switch(type) {
     case 'breathing': return 'Breathing';
     case 'reflection': return 'Reflection';
@@ -289,7 +349,7 @@ const formatExerciseType = (type) => {
   }
 };
 
-const formatTime = (seconds) => {
+const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs < 10 ? '0' + secs : secs}`;
@@ -320,31 +380,36 @@ const startBreathingExercise = (duration = 60) => {
 };
 
 // Scenario methods
-const selectScenarioOption = (scenarioId, optionIndex) => {
+const selectScenarioOption = (scenarioId: string, optionIndex: number) => {
   if (!showScenarioFeedback[scenarioId]) {
     scenarioSelections[scenarioId] = optionIndex;
   }
 };
 
-const showFeedback = (scenarioId) => {
+const showFeedback = (scenarioId: string) => {
   showScenarioFeedback[scenarioId] = true;
 };
 
 // Lesson completion method
-const completeLesson = () => {
-  if (!lesson.value || !module.value || lesson.value.completed) return;
+const completeLesson = async () => {
+  if (!lesson.value || !module.value || isLessonCompleted.value) return;
   
-  // Call the store action to complete the lesson
-  const xpReward = modulesStore.completeLesson(moduleId, lessonId);
-  
-  if (xpReward) {
-    // Update user XP and progress
-    userStore.addXpPoints(xpReward);
-    userStore.incrementSkillsLearned();
-    userStore.updateOverallProgress(modulesStore.getOverallProgress);
+  try {
+    loading.value = true;
     
-    // Show completion message or animation
-    // This could be enhanced with a modal or animation
+    // Call the store action to complete the lesson
+    const xpReward = await modulesStore.completeLesson(moduleId, lessonId);
+    
+    // Update user data
+    if (xpReward) {
+      // Force a refresh of user data to get updated stats
+      await userStore.fetchUser();
+    }
+  } catch (err: any) {
+    console.error('Error completing lesson:', err);
+    error.value = err.message || 'Failed to complete lesson';
+  } finally {
+    loading.value = false;
   }
 };
 </script>
@@ -655,6 +720,32 @@ const completeLesson = () => {
 .lesson-not-found p {
   color: #666;
   margin-bottom: 2rem;
+}
+
+/* Loading styles */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  padding: 3rem;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {

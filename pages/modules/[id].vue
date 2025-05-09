@@ -1,5 +1,19 @@
 <template>
-  <div class="module-detail-page" v-if="module">
+  <!-- Loading state -->
+  <div v-if="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading module...</p>
+  </div>
+  
+  <!-- Error state -->
+  <div v-else-if="error" class="module-not-found">
+    <h2>Error Loading Module</h2>
+    <p>{{ error }}</p>
+    <NuxtLink to="/modules" class="btn">Return to Modules</NuxtLink>
+  </div>
+  
+  <!-- Module content -->
+  <div class="module-detail-page" v-else-if="module">
     <div class="module-header" :style="{ backgroundColor: module.color + '10' }">
       <div class="module-icon" :style="{ backgroundColor: module.color }">
         <span class="icon" :class="module.icon"></span>
@@ -20,9 +34,9 @@
             </div>
           </div>
           <ProgressBar 
-            :progress="module.progress" 
+            :progress="module.progress || 0" 
             :backgroundColor="module.color" 
-            :label="`${module.progress}% Complete`" 
+            :label="`${module.progress || 0}% Complete`" 
           />
         </div>
       </div>
@@ -52,6 +66,8 @@
       </button>
     </div>
   </div>
+  
+  <!-- Module not found -->
   <div v-else class="module-not-found">
     <h2>Module Not Found</h2>
     <p>Sorry, the module you are looking for does not exist or is not available.</p>
@@ -59,35 +75,46 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useModulesStore } from '@/store/modules';
-import { useUserStore } from '@/store/user';
-import ProgressBar from '@/components/shared/ProgressBar.vue';
-import LessonCard from '@/components/lessons/LessonCard.vue';
+import { useModulesStore } from '~/store/modules';
+import { useUserStore } from '~/store/user';
+import ProgressBar from '~/components/shared/ProgressBar.vue';
+import LessonCard from '~/components/lessons/LessonCard.vue';
 
 const route = useRoute();
 const router = useRouter();
 const modulesStore = useModulesStore();
 const userStore = useUserStore();
+const loading = ref(true);
+const error = ref(null);
 
-const moduleId = route.params.id;
+const moduleId = route.params.id as string;
 const module = ref(null);
 
-onMounted(() => {
-  // Find the module with the matching ID
-  const foundModule = modulesStore.modules.find(m => m.id === moduleId);
-  
-  if (foundModule) {
-    if (!foundModule.unlocked) {
-      // If module is locked, redirect to modules page
-      router.push('/modules');
-      return;
-    }
+onMounted(async () => {
+  try {
+    loading.value = true;
     
-    module.value = foundModule;
-    modulesStore.setCurrentModule(moduleId);
+    // Fetch the module with its lessons from the API
+    const fetchedModule = await modulesStore.fetchModule(moduleId);
+    
+    if (fetchedModule) {
+      if (!fetchedModule.unlocked) {
+        // If module is locked, redirect to modules page
+        router.push('/modules');
+        return;
+      }
+      
+      module.value = fetchedModule;
+      modulesStore.setCurrentModule(moduleId);
+    }
+  } catch (err: any) {
+    console.error('Error loading module:', err);
+    error.value = err.message || 'Failed to load module';
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -225,6 +252,32 @@ const resetModuleProgress = () => {
 .module-not-found p {
   color: #666;
   margin-bottom: 2rem;
+}
+
+/* Loading styles */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  padding: 3rem;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Icon styles */

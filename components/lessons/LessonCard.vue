@@ -1,5 +1,5 @@
 <template>
-  <div class="lesson-card card" :class="{ 'completed': lesson.completed }">
+  <div class="lesson-card card" :class="{ 'completed': isCompleted }">
     <div class="lesson-type-badge" :class="lesson.type">
       {{ formatLessonType(lesson.type) }}
     </div>
@@ -14,9 +14,9 @@
           <span>{{ lesson.xpReward }} XP</span>
         </div>
         <div class="completion-status">
-          <span v-if="lesson.completed" class="completed-icon">✓</span>
+          <span v-if="isCompleted" class="completed-icon">✓</span>
           <span v-else class="pending-icon">○</span>
-          <span>{{ lesson.completed ? 'Completed' : 'Not Started' }}</span>
+          <span>{{ isCompleted ? 'Completed' : 'Not Started' }}</span>
         </div>
       </div>
     </div>
@@ -25,16 +25,18 @@
       <NuxtLink 
         :to="`/modules/${moduleId}/lessons/${lesson.id}`"
         class="btn"
-        :class="{ 'btn-outline': lesson.completed }"
+        :class="{ 'btn-outline': isCompleted }"
       >
-        {{ lesson.completed ? 'Review' : 'Start' }}
+        {{ isCompleted ? 'Review' : 'Start' }}
       </NuxtLink>
     </div>
   </div>
 </template>
 
-<script setup>
-defineProps({
+<script setup lang="ts">
+import { useUserStore } from '~/store/user';
+
+const props = defineProps({
   lesson: {
     type: Object,
     required: true
@@ -45,7 +47,15 @@ defineProps({
   }
 });
 
-const formatLessonType = (type) => {
+const userStore = useUserStore();
+
+// Check if the lesson is completed from the user store instead of 
+// relying on the lesson.completed flag
+const isCompleted = computed(() => {
+  return userStore.isLessonCompleted(props.lesson.id);
+});
+
+const formatLessonType = (type: string) => {
   switch(type) {
     case 'theory':
       return 'Theory';
