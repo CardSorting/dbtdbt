@@ -14,6 +14,10 @@
               <li><NuxtLink to="/modules">Modules</NuxtLink></li>
               <li><NuxtLink to="/practice">Daily Practice</NuxtLink></li>
               <li><NuxtLink to="/profile">Profile</NuxtLink></li>
+              <!-- Admin Navigation -->
+              <li v-if="isAdmin"><NuxtLink to="/admin" class="admin-link">Admin</NuxtLink></li>
+              <!-- Teacher Navigation -->
+              <li v-if="isTeacher && !isAdmin"><NuxtLink to="/teacher" class="teacher-link">Teacher</NuxtLink></li>
             </template>
           </ul>
         </nav>
@@ -45,11 +49,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { useUserStore } from '~/store/user';
 
 // Reactive state
 const isSignedIn = ref(false);
 const isLoading = ref(true);
+const userStore = useUserStore();
+
+// Role-based access computed properties
+const isAdmin = computed(() => userStore.role === 'ADMIN');
+const isTeacher = computed(() => ['TEACHER', 'ADMIN'].includes(userStore.role));
 
 // We'll use the $clerk instance provided by the plugin
 const nuxtApp = useNuxtApp();
@@ -169,6 +179,19 @@ const signOut = async () => {
 
 .main-nav a:hover {
   opacity: 0.8;
+}
+
+.admin-link, .teacher-link {
+  position: relative;
+  font-weight: 600;
+}
+
+.admin-link {
+  color: #FFC107;
+}
+
+.teacher-link {
+  color: #4CAF50;
 }
 
 .app-content {

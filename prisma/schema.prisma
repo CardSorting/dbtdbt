@@ -18,6 +18,7 @@ model User {
   skillsLearned Int          @default(0)
   xpPoints      Int          @default(0)
   overallProgress Int        @default(0)
+  role          UserRole     @default(STUDENT)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
@@ -25,6 +26,33 @@ model User {
   userAchievements UserAchievement[]
   modulesProgress  ModuleProgress[]
   lessonsCompleted LessonCompleted[]
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  action      String   // e.g., "read", "create", "update", "delete"
+  resource    String   // e.g., "modules", "lessons", "users" 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  role        UserRole
+  permissionId String
+  
+  // Relations
+  permission  Permission @relation(fields: [permissionId], references: [id])
+  
+  @@id([role, permissionId])
 }
 
 model Module {

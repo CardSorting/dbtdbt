@@ -49,11 +49,25 @@ export default function useApi() {
     }
   };
 
+  // User role management
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      return await $fetch('/api/user/update-role', {
+        method: 'POST',
+        body: { userId, newRole }
+      });
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      throw error;
+    }
+  };
+
   return {
     fetchModules,
     fetchModule,
     fetchLesson,
     fetchUser,
-    completeLesson
+    completeLesson,
+    updateUserRole
   };
 }

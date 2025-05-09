@@ -1,4 +1,5 @@
 import prisma from '~/server/services/prisma';
+import { getPermissionsForRole } from '~/server/services/permissions';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -34,6 +35,10 @@ export default defineEventHandler(async (event) => {
       });
     }
     
+    // Get permissions based on the user's role
+    const role = user.role || 'STUDENT';
+    const permissions = getPermissionsForRole(role);
+    
     // Transform the data to a more convenient format for the frontend
     const transformedUser = {
       id: user.id,
@@ -43,6 +48,8 @@ export default defineEventHandler(async (event) => {
       skillsLearned: user.skillsLearned,
       xpPoints: user.xpPoints,
       overallProgress: user.overallProgress,
+      role: role,
+      permissions: permissions,
       createdAt: user.createdAt,
       achievements: user.userAchievements.map((ua: any) => ({
         id: ua.achievement.id,

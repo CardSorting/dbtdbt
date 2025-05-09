@@ -24,6 +24,8 @@ interface UserState {
   skillsLearned: number;
   xpPoints: number;
   overallProgress: number;
+  role: string; // 'STUDENT', 'TEACHER', 'ADMIN'
+  permissions: string[]; // Array of permission strings like 'create:lessons'
   achievements: Achievement[];
   moduleProgress: ModuleProgress[];
   completedLessons: string[];
@@ -40,6 +42,8 @@ export const useUserStore = defineStore('user', {
     skillsLearned: 0,
     xpPoints: 0,
     overallProgress: 0,
+    role: 'STUDENT',
+    permissions: [],
     achievements: [],
     moduleProgress: [],
     completedLessons: [],
@@ -54,7 +58,13 @@ export const useUserStore = defineStore('user', {
     getXpPoints: (state) => state.xpPoints,
     getSkillsLearned: (state) => state.skillsLearned,
     getOverallProgress: (state) => state.overallProgress,
-    isLessonCompleted: (state) => (lessonId: string) => state.completedLessons.includes(lessonId)
+    isLessonCompleted: (state) => (lessonId: string) => state.completedLessons.includes(lessonId),
+    getRole: (state) => state.role,
+    getPermissions: (state) => state.permissions,
+    hasPermission: (state) => (permission: string) => state.permissions.includes(permission),
+    isAdmin: (state) => state.role === 'ADMIN',
+    isTeacher: (state) => state.role === 'TEACHER' || state.role === 'ADMIN',
+    isStudent: (state) => state.role === 'STUDENT'
   },
   
   actions: {
@@ -79,6 +89,8 @@ export const useUserStore = defineStore('user', {
           skillsLearned: number;
           xpPoints: number;
           overallProgress: number;
+          role?: string;
+          permissions?: string[];
           achievements: Achievement[];
           moduleProgress: ModuleProgress[];
           completedLessons: string[];
@@ -99,6 +111,8 @@ export const useUserStore = defineStore('user', {
           this.skillsLearned = typeof response.skillsLearned === 'number' ? response.skillsLearned : 0;
           this.xpPoints = typeof response.xpPoints === 'number' ? response.xpPoints : 0;
           this.overallProgress = typeof response.overallProgress === 'number' ? response.overallProgress : 0;
+          this.role = response.role || 'STUDENT';
+          this.permissions = Array.isArray(response.permissions) ? response.permissions : [];
           this.achievements = Array.isArray(response.achievements) ? response.achievements : [];
           this.moduleProgress = Array.isArray(response.moduleProgress) ? response.moduleProgress : [];
           this.completedLessons = Array.isArray(response.completedLessons) ? response.completedLessons : [];
@@ -191,6 +205,8 @@ export const useUserStore = defineStore('user', {
           skillsLearned: number;
           xpPoints: number;
           overallProgress: number;
+          role?: string;
+          permissions?: string[];
           achievements: Achievement[];
           moduleProgress: ModuleProgress[];
           completedLessons: string[];
@@ -216,6 +232,8 @@ export const useUserStore = defineStore('user', {
         this.skillsLearned = typeof userData.skillsLearned === 'number' ? userData.skillsLearned : 0;
         this.xpPoints = typeof userData.xpPoints === 'number' ? userData.xpPoints : 0;
         this.overallProgress = typeof userData.overallProgress === 'number' ? userData.overallProgress : 0;
+        this.role = userData.role || 'STUDENT';
+        this.permissions = Array.isArray(userData.permissions) ? userData.permissions : [];
         this.achievements = Array.isArray(userData.achievements) ? userData.achievements : [];
         this.moduleProgress = Array.isArray(userData.moduleProgress) ? userData.moduleProgress : [];
         this.completedLessons = Array.isArray(userData.completedLessons) ? userData.completedLessons : [];
