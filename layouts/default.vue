@@ -71,9 +71,32 @@ onMounted(async () => {
     if (nuxtApp.$clerk) {
       await nuxtApp.$clerk.load();
       isSignedIn.value = !!nuxtApp.$clerk.user;
+      
+      // If signed in, synchronize with user store to get role data
+      if (isSignedIn.value) {
+        await userStore.fetchUser().catch(err => {
+          console.warn('User store sync error:', err);
+          // Don't throw - we still want the app to work even if user data sync fails
+        });
+      }
+    } else {
+      console.warn('Clerk not available, using mock authentication for development');
+      // For development convenience, we'll assume the user is signed in
+      if (process.env.NODE_ENV !== 'production') {
+        isSignedIn.value = true;
+        // In development, assume admin for easier testing
+        userStore.role = 'ADMIN';
+        userStore.permissions = ['read:modules', 'read:lessons', 'read:users', 
+                               'create:modules', 'update:modules', 'delete:modules',
+                               'create:lessons', 'update:lessons', 'delete:lessons'];
+      }
     }
   } catch (err) {
     console.error('Error checking auth status:', err);
+    // For development, still allow access
+    if (process.env.NODE_ENV !== 'production') {
+      isSignedIn.value = true;
+    }
   } finally {
     isLoading.value = false;
   }

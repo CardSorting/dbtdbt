@@ -12,37 +12,59 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Skip if no role or permission requirements
   if (!requiredRole && (!requiredPermissions || requiredPermissions.length === 0)) return;
   
-  // Get user store to check role and permissions
-  const userStore = useUserStore();
-  const userRole = userStore.role;
-  const userPermissions = userStore.permissions || [];
-  
-  let hasAccess = true;
-  
-  // Check role
-  if (requiredRole) {
-    if (requiredRole === UserRole.ADMIN && userRole !== UserRole.ADMIN) {
-      hasAccess = false;
-    } else if (requiredRole === UserRole.TEACHER && 
-               userRole !== UserRole.TEACHER && 
-               userRole !== UserRole.ADMIN) {
-      hasAccess = false;
-    }
-  }
-  
-  // Check permissions
-  if (requiredPermissions && requiredPermissions.length > 0) {
-    const hasAllPermissions = requiredPermissions.every(permission => 
-      userPermissions.includes(permission)
-    );
+  try {
+    // Get user store to check role and permissions
+    const userStore = useUserStore();
     
-    if (!hasAllPermissions) {
-      hasAccess = false;
+    // If in development and no role is set, allow access with a warning
+    // This helps with development when auth isn't fully set up
+    if (process.env.NODE_ENV !== 'production') {
+      if (!userStore.role) {
+        console.warn(`RBAC: Development mode - bypassing role check for ${to.path}`);
+        console.warn(`Required role: ${requiredRole}, but no role found in user store`);
+        // For development, we'll assume the user has the required role
+        return;
+      }
     }
-  }
-  
-  // If access is denied, redirect to unauthorized page or home
-  if (!hasAccess) {
-    return navigateTo('/unauthorized', { redirectCode: 403 });
+    
+    const userRole = userStore.role;
+    const userPermissions = userStore.permissions || [];
+    
+    let hasAccess = true;
+    
+    // Check role
+    if (requiredRole) {
+      if (requiredRole === UserRole.ADMIN && userRole !== UserRole.ADMIN) {
+        hasAccess = false;
+      } else if (requiredRole === UserRole.TEACHER && 
+                userRole !== UserRole.TEACHER && 
+                userRole !== UserRole.ADMIN) {
+        hasAccess = false;
+      }
+    }
+    
+    // Check permissions
+    if (requiredPermissions && requiredPermissions.length > 0) {
+      const hasAllPermissions = requiredPermissions.every(permission => 
+        userPermissions.includes(permission)
+      );
+      
+      if (!hasAllPermissions) {
+        hasAccess = false;
+      }
+    }
+    
+    // If access is denied, redirect to unauthorized page
+    if (!hasAccess) {
+      console.warn(`RBAC: Access denied to ${to.path} - User role: ${userRole}, Required role: ${requiredRole}`);
+      return navigateTo('/unauthorized', { redirectCode: 403 });
+    }
+  } catch (error) {
+    console.error('RBAC middleware error:', error);
+    // In development, we'll allow access despite errors
+    if (process.env.NODE_ENV === 'production') {
+      return navigateTo('/unauthorized', { redirectCode: 403 });
+    }
+    console.warn('RBAC: Development mode - allowing access despite error');
   }
 });

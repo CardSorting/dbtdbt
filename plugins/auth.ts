@@ -1,9 +1,30 @@
 // This plugin adds a global auth helper
 
+// Improved type definitions for Clerk
+interface ClerkUser {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
+  username?: string;
+  [key: string]: any;
+}
+
+interface ClerkClient {
+  user?: ClerkUser;
+  session?: {
+    id: string;
+    [key: string]: any;
+  };
+  signOut?: () => Promise<void>;
+  [key: string]: any;
+}
+
 // Declare the Clerk module for TypeScript
 declare module '#app' {
   interface NuxtApp {
-    $clerk: any
+    $clerk: ClerkClient;
   }
 }
 
