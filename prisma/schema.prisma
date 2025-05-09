@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(uuid())
+  name          String       @default("Guest")
+  streak        Int          @default(0)
+  lastLogin     DateTime?
+  skillsLearned Int          @default(0)
+  xpPoints      Int          @default(0)
+  overallProgress Int        @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  userAchievements UserAchievement[]
+  modulesProgress  ModuleProgress[]
+  lessonsCompleted LessonCompleted[]
+}
+
+model Module {
+  id          String   @id
+  title       String
+  description String
+  icon        String
+  color       String
+  unlocked    Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  lessons         Lesson[]
+  modulesProgress ModuleProgress[]
+}
+
+model Lesson {
+  id          String   @id
+  moduleId    String
+  title       String
+  description String
+  type        String   // theory, exercise, practice, quiz
+  xpReward    Int      @default(10)
+  content     Json     // Storing lesson content as JSON
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  module           Module             @relation(fields: [moduleId], references: [id])
+  lessonsCompleted LessonCompleted[]
+}
+
+model Achievement {
+  id          String   @id
+  name        String
+  description String
+  icon        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userAchievements UserAchievement[]
+}
+
+// Join tables for many-to-many relations
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  earned        Boolean   @default(false)
+  earnedDate    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+  
+  @@id([userId, achievementId])
+}
+
+model ModuleProgress {
+  userId     String
+  moduleId   String
+  progress   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  // Relations
+  user       User      @relation(fields: [userId], references: [id])
+  module     Module    @relation(fields: [moduleId], references: [id])
+  
+  @@id([userId, moduleId])
+}
+
+model LessonCompleted {
+  userId     String
+  lessonId   String
+  completedAt DateTime  @default(now())
+  
+  // Relations
+  user       User      @relation(fields: [userId], references: [id])
+  lesson     Lesson    @relation(fields: [lessonId], references: [id])
+  
+  @@id([userId, lessonId])
+}
