@@ -17,6 +17,7 @@ interface ModuleProgress {
 
 interface UserState {
   id: string;
+  clerkId?: string; // External auth ID from Clerk
   name: string;
   streak: number;
   lastLogin: string | null;
@@ -57,6 +58,121 @@ export const useUserStore = defineStore('user', {
   },
   
   actions: {
+    // Fetch user by Clerk ID
+    async fetchUserByClerkId(clerkId: string) {
+      const api = useApi();
+      this.isLoading = true;
+      this.error = null;
+      
+      try {
+        // In a real app, this would call a specific endpoint to fetch by clerk ID
+        // For now we'll just call the regular fetchUser for demo purposes
+        const response = await api.fetchUser();
+        
+        // Type guard to verify response is a valid user object
+        const isValidUserData = (data: any): data is {
+          id: string;
+          clerkId?: string;
+          name: string;
+          streak: number;
+          lastLogin: string | null;
+          skillsLearned: number;
+          xpPoints: number;
+          overallProgress: number;
+          achievements: Achievement[];
+          moduleProgress: ModuleProgress[];
+          completedLessons: string[];
+        } => {
+          return data && 
+                 typeof data === 'object' && 
+                 'id' in data && 
+                 typeof data.id === 'string';
+        };
+        
+        if (isValidUserData(response) && response.clerkId === clerkId) {
+          // Update state with user data
+          this.id = response.id;
+          this.clerkId = response.clerkId;
+          this.name = response.name || 'Guest';
+          this.streak = typeof response.streak === 'number' ? response.streak : 0;
+          this.lastLogin = response.lastLogin || null;
+          this.skillsLearned = typeof response.skillsLearned === 'number' ? response.skillsLearned : 0;
+          this.xpPoints = typeof response.xpPoints === 'number' ? response.xpPoints : 0;
+          this.overallProgress = typeof response.overallProgress === 'number' ? response.overallProgress : 0;
+          this.achievements = Array.isArray(response.achievements) ? response.achievements : [];
+          this.moduleProgress = Array.isArray(response.moduleProgress) ? response.moduleProgress : [];
+          this.completedLessons = Array.isArray(response.completedLessons) ? response.completedLessons : [];
+          
+          return response;
+        }
+        
+        // Clear state if no matching user found
+        this.id = '';
+        return null;
+      } catch (error: any) {
+        this.error = error.message || 'Failed to fetch user by Clerk ID';
+        console.error('Error fetching user by Clerk ID:', error);
+        return null;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    
+    // Create a new user account
+    async createUser(userData: { clerkId: string, name: string }) {
+      const api = useApi();
+      this.isLoading = true;
+      this.error = null;
+      
+      try {
+        // In a real app, this would call an API endpoint to create a user
+        // For now, we'll just update the local state
+        this.id = `user-${Date.now()}`;
+        this.clerkId = userData.clerkId;
+        this.name = userData.name;
+        this.streak = 0;
+        this.lastLogin = new Date().toISOString();
+        this.skillsLearned = 0;
+        this.xpPoints = 0;
+        this.overallProgress = 0;
+        
+        console.log('Created new user:', this.id, this.clerkId, this.name);
+        
+        // Initialize with default achievements
+        this.achievements = [
+          {
+            id: 'first-lesson',
+            name: 'First Steps',
+            description: 'Complete your first lesson',
+            earned: false,
+            icon: '🌱'
+          },
+          {
+            id: 'three-day-streak',
+            name: 'Consistent Practice',
+            description: 'Maintain a 3-day streak',
+            earned: false,
+            icon: '🔥'
+          },
+          {
+            id: 'dbt-graduate',
+            name: 'DBT Graduate',
+            description: 'Complete all DBT skill modules',
+            earned: false,
+            icon: '🎓'
+          }
+        ];
+        
+        return { id: this.id, clerkId: this.clerkId, name: this.name };
+      } catch (error: any) {
+        this.error = error.message || 'Failed to create user';
+        console.error('Error creating user:', error);
+        return null;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    
     // Fetch user data from the API
     async fetchUser() {
       const api = useApi();

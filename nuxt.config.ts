@@ -2,7 +2,16 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
-  modules: ['@pinia/nuxt'],
+  modules: [
+    '@pinia/nuxt',
+    '@clerk/nuxt'
+  ],
+  runtimeConfig: {
+    public: {
+      clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY
+    },
+    clerkSecretKey: process.env.CLERK_SECRET_KEY
+  },
   css: ['~/assets/css/main.css'],
   app: {
     head: {

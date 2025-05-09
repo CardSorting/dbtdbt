@@ -10,11 +10,22 @@
         <nav class="main-nav">
           <ul>
             <li><NuxtLink to="/">Home</NuxtLink></li>
-            <li><NuxtLink to="/modules">Modules</NuxtLink></li>
-            <li><NuxtLink to="/practice">Daily Practice</NuxtLink></li>
-            <li><NuxtLink to="/profile">Profile</NuxtLink></li>
+            <template v-if="isSignedIn">
+              <li><NuxtLink to="/modules">Modules</NuxtLink></li>
+              <li><NuxtLink to="/practice">Daily Practice</NuxtLink></li>
+              <li><NuxtLink to="/profile">Profile</NuxtLink></li>
+            </template>
           </ul>
         </nav>
+        <div class="auth-actions">
+          <template v-if="isSignedIn">
+            <button @click="signOut" class="sign-out-btn">Sign Out</button>
+          </template>
+          <template v-else>
+            <NuxtLink to="/sign-in" class="auth-btn">Sign In</NuxtLink>
+            <NuxtLink to="/sign-up" class="auth-btn sign-up">Sign Up</NuxtLink>
+          </template>
+        </div>
       </div>
     </header>
 
@@ -32,6 +43,44 @@
     </footer>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue';
+
+// Reactive state
+const isSignedIn = ref(false);
+const isLoading = ref(true);
+
+// We'll use the $clerk instance provided by the plugin
+const nuxtApp = useNuxtApp();
+
+// Check authentication status when component mounts
+onMounted(async () => {
+  try {
+    // Wait for Clerk to be ready
+    if (nuxtApp.$clerk) {
+      await nuxtApp.$clerk.load();
+      isSignedIn.value = !!nuxtApp.$clerk.user;
+    }
+  } catch (err) {
+    console.error('Error checking auth status:', err);
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+// Handle sign out
+const signOut = async () => {
+  try {
+    if (nuxtApp.$clerk) {
+      await nuxtApp.$clerk.signOut();
+      navigateTo('/');
+    }
+  } catch (err) {
+    console.error('Error signing out:', err);
+  }
+};
+</script>
 
 <style scoped>
 .app-layout {
@@ -51,6 +100,47 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.auth-btn, .sign-out-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-weight: 500;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.auth-btn {
+  color: white;
+  border: 1px solid white;
+  background: transparent;
+}
+
+.auth-btn.sign-up {
+  background-color: white;
+  color: var(--primary-color);
+}
+
+.sign-out-btn {
+  background-color: transparent;
+  color: white;
+  border: 1px solid white;
+  cursor: pointer;
+}
+
+.auth-btn:hover, .sign-out-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.auth-btn.sign-up:hover {
+  background-color: rgba(255, 255, 255, 0.8);
 }
 
 .logo h1 {
@@ -107,6 +197,10 @@
 
   .main-nav ul {
     gap: 1rem;
+  }
+  
+  .auth-actions {
+    margin-top: 1rem;
   }
 }
 
