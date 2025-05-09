@@ -4,163 +4,77 @@
     <p class="page-description">
       Choose a module to begin learning. Each module contains a series of lessons focused on different DBT skills.
     </p>
-
+    
+    <!-- User Progress Overview -->
     <div class="progress-overview">
       <div class="progress-card card">
         <div class="progress-stats">
           <div class="stat">
-            <span class="stat-value">0</span>
+            <span class="stat-value">{{ userStore.skillsLearned }}</span>
             <span class="stat-label">Skills Learned</span>
           </div>
           <div class="stat">
-            <span class="stat-value">0</span>
+            <span class="stat-value">{{ userStore.streak }}</span>
             <span class="stat-label">Days Streak</span>
           </div>
           <div class="stat">
-            <span class="stat-value">0%</span>
+            <span class="stat-value">{{ userStore.overallProgress }}%</span>
             <span class="stat-label">Overall Progress</span>
           </div>
         </div>
         <div class="progress-bar">
-          <div class="progress-fill" style="width: 0%"></div>
+          <div class="progress-fill" :style="{ width: userStore.overallProgress + '%' }"></div>
         </div>
       </div>
     </div>
 
-    <div class="modules-container">
-      <!-- Mindfulness Module -->
-      <div class="module-card card">
+    <div v-if="modulesStore.isLoading" class="loading">
+      <div class="loading-spinner"></div>
+      <p>Loading modules...</p>
+    </div>
+    
+    <div v-else-if="modulesStore.error" class="error-message">
+      <p>{{ modulesStore.error }}</p>
+      <button @click="modulesStore.fetchModules()" class="btn">Try Again</button>
+    </div>
+    
+    <div v-else class="modules-container">
+      <div 
+        v-for="module in sortedModules" 
+        :key="module.id" 
+        class="module-card card"
+        :class="{ 'locked': !module.unlocked }"
+      >
         <div class="module-header">
-          <div class="module-icon mindfulness"></div>
-          <h2>Mindfulness</h2>
+          <div class="module-icon" :class="module.id"></div>
+          <h2>{{ module.title }}</h2>
+          <span v-if="!module.unlocked" class="locked-badge">Locked</span>
         </div>
         <div class="module-content">
-          <p>Learn skills to focus on the present moment and observe thoughts and emotions without judgment.</p>
-          <div class="skills-list">
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>Wise Mind</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>What Skills</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>How Skills</span>
-            </div>
-          </div>
-          <div class="module-progress">
-            <span class="progress-text">0% Complete</span>
+          <p>{{ module.description }}</p>
+          
+          <div v-if="module.unlocked" class="module-progress">
+            <span class="progress-text">{{ getModuleProgress(module.id) }}% Complete</span>
             <div class="progress-bar">
-              <div class="progress-fill" style="width: 0%"></div>
+              <div class="progress-fill" :style="{ width: getModuleProgress(module.id) + '%' }"></div>
             </div>
           </div>
         </div>
         <div class="module-footer">
-          <NuxtLink to="/modules/mindfulness" class="btn">Start Learning</NuxtLink>
-        </div>
-      </div>
-
-      <!-- Distress Tolerance Module -->
-      <div class="module-card card">
-        <div class="module-header">
-          <div class="module-icon distress-tolerance"></div>
-          <h2>Distress Tolerance</h2>
-        </div>
-        <div class="module-content">
-          <p>Develop skills to tolerate and survive crisis situations without making the situation worse.</p>
-          <div class="skills-list">
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>STOP Skill</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>TIPP Skills</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>Self-Soothing</span>
-            </div>
-          </div>
-          <div class="module-progress">
-            <span class="progress-text">0% Complete</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="module-footer">
-          <NuxtLink to="/modules/distress-tolerance" class="btn">Start Learning</NuxtLink>
-        </div>
-      </div>
-
-      <!-- Emotion Regulation Module -->
-      <div class="module-card card">
-        <div class="module-header">
-          <div class="module-icon emotion-regulation"></div>
-          <h2>Emotion Regulation</h2>
-        </div>
-        <div class="module-content">
-          <p>Learn to identify, understand, and change emotional responses to be more effective in daily life.</p>
-          <div class="skills-list">
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>Identifying Emotions</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>Opposite Action</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>PLEASE Skills</span>
-            </div>
-          </div>
-          <div class="module-progress">
-            <span class="progress-text">0% Complete</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="module-footer">
-          <NuxtLink to="/modules/emotion-regulation" class="btn">Start Learning</NuxtLink>
-        </div>
-      </div>
-
-      <!-- Interpersonal Effectiveness Module -->
-      <div class="module-card card">
-        <div class="module-header">
-          <div class="module-icon interpersonal-effectiveness"></div>
-          <h2>Interpersonal Effectiveness</h2>
-        </div>
-        <div class="module-content">
-          <p>Develop skills to navigate relationships and interact with others in ways that are effective and respectful.</p>
-          <div class="skills-list">
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>DEAR MAN</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>GIVE Skills</span>
-            </div>
-            <div class="skill-item">
-              <div class="skill-icon"></div>
-              <span>FAST Skills</span>
-            </div>
-          </div>
-          <div class="module-progress">
-            <span class="progress-text">0% Complete</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="module-footer">
-          <NuxtLink to="/modules/interpersonal-effectiveness" class="btn">Start Learning</NuxtLink>
+          <NuxtLink 
+            v-if="module.unlocked" 
+            :to="'/modules/' + module.id" 
+            class="btn"
+          >
+            Start Learning
+          </NuxtLink>
+          <button 
+            v-else 
+            class="btn locked-btn" 
+            disabled
+          >
+            Complete Previous Module
+          </button>
         </div>
       </div>
     </div>
@@ -168,38 +82,39 @@
     <div class="learning-path card">
       <h2>Recommended Learning Path</h2>
       <div class="path-steps">
-        <div class="path-step">
-          <div class="step-icon mindfulness"></div>
+        <div 
+          v-for="(module, index) in sortedModules" 
+          :key="module.id"
+          class="path-step"
+        >
+          <div class="step-icon" :class="module.id"></div>
           <div class="step-content">
-            <h3>1. Mindfulness</h3>
-            <p>Start with mindfulness skills as they form the foundation for all other DBT skills.</p>
-          </div>
-        </div>
-        <div class="path-step">
-          <div class="step-icon distress-tolerance"></div>
-          <div class="step-content">
-            <h3>2. Distress Tolerance</h3>
-            <p>Learn to survive crisis situations without making them worse.</p>
-          </div>
-        </div>
-        <div class="path-step">
-          <div class="step-icon emotion-regulation"></div>
-          <div class="step-content">
-            <h3>3. Emotion Regulation</h3>
-            <p>Develop skills to understand and change your emotional responses.</p>
-          </div>
-        </div>
-        <div class="path-step">
-          <div class="step-icon interpersonal-effectiveness"></div>
-          <div class="step-content">
-            <h3>4. Interpersonal Effectiveness</h3>
-            <p>Build skills for effective communication and relationship management.</p>
+            <h3>{{ index + 1 }}. {{ module.title }}</h3>
+            <p>{{ module.description }}</p>
           </div>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { useModulesStore } from '~/store/modules';
+import { useUserStore } from '~/store/user';
+
+const modulesStore = useModulesStore();
+const userStore = useUserStore();
+
+// Computed property to get modules sorted by order
+const sortedModules = computed(() => {
+  return [...modulesStore.modules].sort((a, b) => a.order - b.order);
+});
+
+// Function to get module progress
+const getModuleProgress = (moduleId: string) => {
+  return modulesStore.getModuleProgress(moduleId);
+};
+</script>
 
 <style scoped>
 .modules-page {
@@ -276,6 +191,23 @@
   overflow: hidden;
 }
 
+.module-card.locked {
+  opacity: 0.7;
+  position: relative;
+}
+
+.locked-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: var(--error-color);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
 .module-header {
   display: flex;
   align-items: center;
@@ -283,6 +215,7 @@
   gap: 1rem;
   background-color: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
+  position: relative;
 }
 
 .module-icon {
@@ -358,6 +291,12 @@
   text-align: center;
 }
 
+.locked-btn {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(to right, #888, #aaa);
+}
+
 .learning-path {
   padding: 2rem;
 }
@@ -407,6 +346,40 @@
   margin: 0 0 0.5rem;
   font-size: 1.2rem;
   color: var(--primary-color);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  padding: 2rem;
+  text-align: center;
+  color: var(--error-color);
+}
+
+.error-message button {
+  margin-top: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {

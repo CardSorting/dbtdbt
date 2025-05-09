@@ -1,10 +1,67 @@
 <template>
-  <NuxtLayout>
-    <NuxtPage />
-  </NuxtLayout>
+  <div>
+    <div v-if="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Loading DBT App...</p>
+    </div>
+    <NuxtLayout v-else>
+      <NuxtPage />
+    </NuxtLayout>
+  </div>
 </template>
 
+<script setup lang="ts">
+import { useModulesStore } from '~/store/modules';
+import { useUserStore } from '~/store/user';
+
+const loading = ref(true);
+const modulesStore = useModulesStore();
+const userStore = useUserStore();
+
+// Initialize data from the API
+onMounted(async () => {
+  try {
+    // Fetch user data
+    await userStore.fetchUser();
+    
+    // Fetch modules data
+    await modulesStore.fetchModules();
+    
+    // Update user streak
+    await userStore.checkAndUpdateStreak();
+  } catch (error) {
+    console.error('Error initializing app data:', error);
+  } finally {
+    loading.value = false;
+  }
+});
+</script>
+
 <style>
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: var(--bg-color);
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 :root {
   --primary-color: #5B86E5;
   --secondary-color: #36D1DC;

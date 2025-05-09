@@ -1,15 +1,5 @@
 import { defineStore } from 'pinia';
 
-interface UserState {
-  name: string;
-  streak: number;
-  lastLogin: string | null;
-  skillsLearned: number;
-  xpPoints: number;
-  overallProgress: number;
-  achievements: Achievement[];
-}
-
 interface Achievement {
   id: string;
   name: string;
@@ -19,65 +9,41 @@ interface Achievement {
   earnedDate?: string;
 }
 
+interface ModuleProgress {
+  moduleId: string;
+  title: string;
+  progress: number;
+}
+
+interface UserState {
+  id: string;
+  name: string;
+  streak: number;
+  lastLogin: string | null;
+  skillsLearned: number;
+  xpPoints: number;
+  overallProgress: number;
+  achievements: Achievement[];
+  moduleProgress: ModuleProgress[];
+  completedLessons: string[];
+  isLoading: boolean;
+  error: string | null;
+}
+
 export const useUserStore = defineStore('user', {
   state: (): UserState => ({
+    id: 'default-user',
     name: 'Guest',
     streak: 0,
     lastLogin: null,
     skillsLearned: 0,
     xpPoints: 0,
     overallProgress: 0,
-    achievements: [
-      {
-        id: 'first-lesson',
-        name: 'First Steps',
-        description: 'Complete your first lesson',
-        earned: false,
-        icon: '🎯'
-      },
-      {
-        id: 'three-day-streak',
-        name: 'Consistency is Key',
-        description: 'Maintain a 3-day streak',
-        earned: false,
-        icon: '🔥'
-      },
-      {
-        id: 'mindfulness-master',
-        name: 'Mindfulness Master',
-        description: 'Complete all mindfulness lessons',
-        earned: false,
-        icon: '🧘'
-      },
-      {
-        id: 'distress-tolerance',
-        name: 'Calm in the Storm',
-        description: 'Complete all distress tolerance lessons',
-        earned: false,
-        icon: '🌊'
-      },
-      {
-        id: 'emotion-regulation',
-        name: 'Emotion Expert',
-        description: 'Complete all emotion regulation lessons',
-        earned: false,
-        icon: '❤️'
-      },
-      {
-        id: 'interpersonal',
-        name: 'Relationship Navigator',
-        description: 'Complete all interpersonal effectiveness lessons',
-        earned: false,
-        icon: '🤝'
-      },
-      {
-        id: 'dbt-graduate',
-        name: 'DBT Graduate',
-        description: 'Complete all modules',
-        earned: false,
-        icon: '🎓'
-      }
-    ]
+    achievements: [],
+    moduleProgress: [],
+    completedLessons: [],
+    isLoading: false,
+    error: null
   }),
   
   getters: {
@@ -86,15 +52,77 @@ export const useUserStore = defineStore('user', {
     getStreak: (state) => state.streak,
     getXpPoints: (state) => state.xpPoints,
     getSkillsLearned: (state) => state.skillsLearned,
-    getOverallProgress: (state) => state.overallProgress
+    getOverallProgress: (state) => state.overallProgress,
+    isLessonCompleted: (state) => (lessonId: string) => state.completedLessons.includes(lessonId)
   },
   
   actions: {
-    setName(name: string) {
+    // Fetch user data from the API
+    async fetchUser() {
+      const api = useApi();
+      this.isLoading = true;
+      this.error = null;
+      
+      try {
+        const response = await api.fetchUser();
+        
+        // Type guard to ensure we have the correct shape
+        const isValidUserData = (data: any): data is {
+          id: string;
+          name: string;
+          streak: number;
+          lastLogin: string | null;
+          skillsLearned: number;
+          xpPoints: number;
+          overallProgress: number;
+          achievements: Achievement[];
+          moduleProgress: ModuleProgress[];
+          completedLessons: string[];
+        } => {
+          return data && 
+                 typeof data === 'object' && 
+                 'id' in data && 
+                 typeof data.id === 'string';
+        };
+        
+        if (!isValidUserData(response)) {
+          throw new Error('Invalid user data received from API');
+        }
+        
+        // Now TypeScript knows the shape of userData
+        const userData = response;
+        
+        // Update state with user data
+        this.id = userData.id;
+        this.name = userData.name || 'Guest';
+        this.streak = typeof userData.streak === 'number' ? userData.streak : 0;
+        this.lastLogin = userData.lastLogin || null;
+        this.skillsLearned = typeof userData.skillsLearned === 'number' ? userData.skillsLearned : 0;
+        this.xpPoints = typeof userData.xpPoints === 'number' ? userData.xpPoints : 0;
+        this.overallProgress = typeof userData.overallProgress === 'number' ? userData.overallProgress : 0;
+        this.achievements = Array.isArray(userData.achievements) ? userData.achievements : [];
+        this.moduleProgress = Array.isArray(userData.moduleProgress) ? userData.moduleProgress : [];
+        this.completedLessons = Array.isArray(userData.completedLessons) ? userData.completedLessons : [];
+        
+        return userData;
+      } catch (error: any) {
+        this.error = error.message || 'Failed to fetch user data';
+        console.error('Error fetching user data:', error);
+        return null;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    
+    // Update user name
+    async setName(name: string) {
+      // In a real app, this would call an API endpoint to update the name
+      // For now, we just update the local state
       this.name = name;
     },
     
-    checkAndUpdateStreak() {
+    // Check and update streak
+    async checkAndUpdateStreak() {
       const today = new Date().toISOString().split('T')[0];
       
       if (this.lastLogin) {
@@ -117,42 +145,61 @@ export const useUserStore = defineStore('user', {
       }
       
       this.lastLogin = today;
+      
+      // In a real app, this would call an API endpoint to update the streak
+      // For now, we just check achievements locally
       this.checkAchievements();
     },
     
-    addXpPoints(points: number) {
+    // Add XP points
+    async addXpPoints(points: number) {
+      // In a real app, this would call an API endpoint to add XP
+      // For now, we just update the local state
       this.xpPoints += points;
       this.checkAchievements();
     },
     
-    incrementSkillsLearned() {
+    // Increment skills learned
+    async incrementSkillsLearned() {
+      // In a real app, this would call an API endpoint
+      // For now, we just update the local state
       this.skillsLearned += 1;
       this.checkAchievements();
     },
     
-    updateOverallProgress(progress: number) {
+    // Update overall progress
+    async updateOverallProgress(progress: number) {
+      // In a real app, this would call an API endpoint
+      // For now, we just update the local state
       this.overallProgress = progress;
       this.checkAchievements();
     },
     
+    // Check achievements
     checkAchievements() {
       // First lesson achievement
-      if (this.xpPoints > 0 && !this.achievements.find(a => a.id === 'first-lesson')!.earned) {
+      const firstLessonAchievement = this.achievements.find(a => a.id === 'first-lesson');
+      if (this.xpPoints > 0 && firstLessonAchievement && !firstLessonAchievement.earned) {
         this.earnAchievement('first-lesson');
       }
       
       // 3-day streak achievement
-      if (this.streak >= 3 && !this.achievements.find(a => a.id === 'three-day-streak')!.earned) {
+      const streakAchievement = this.achievements.find(a => a.id === 'three-day-streak');
+      if (this.streak >= 3 && streakAchievement && !streakAchievement.earned) {
         this.earnAchievement('three-day-streak');
       }
       
       // DBT Graduate achievement
-      if (this.overallProgress >= 100 && !this.achievements.find(a => a.id === 'dbt-graduate')!.earned) {
+      const graduateAchievement = this.achievements.find(a => a.id === 'dbt-graduate');
+      if (this.overallProgress >= 100 && graduateAchievement && !graduateAchievement.earned) {
         this.earnAchievement('dbt-graduate');
       }
     },
     
-    earnAchievement(achievementId: string) {
+    // Earn achievement
+    async earnAchievement(achievementId: string) {
+      // In a real app, this would call an API endpoint
+      // For now, we just update the local state
       const achievement = this.achievements.find(a => a.id === achievementId);
       if (achievement && !achievement.earned) {
         achievement.earned = true;
